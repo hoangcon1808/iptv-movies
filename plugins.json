@@ -1,0 +1,22 @@
+[
+    {
+        "name": "🎬 KHO PHIM LẺ",
+        "url": "https://cdn.jsdelivr.net/gh/trungnt3891-stack/iptv-movies@main/phim_le.m3u",
+        "type": "m3u"
+    },
+    {
+        "name": "📺 KHO PHIM BỘ",
+        "url": "https://cdn.jsdelivr.net/gh/trungnt3891-stack/iptv-movies@main/phim_bo.m3u",
+        "type": "m3u"
+    },
+    {
+        "name": "🐻 KHO HOẠT HÌNH",
+        "url": "https://cdn.jsdelivr.net/gh/trungnt3891-stack/iptv-movies@main/hoat_hinh.m3u",
+        "type": "m3u"
+    },
+    {
+        "name": "🎤 KHO TV SHOWS",
+        "url": "https://cdn.jsdelivr.net/gh/trungnt3891-stack/iptv-movies@main/tv_shows.m3u",
+        "type": "m3u"
+    }
+]
