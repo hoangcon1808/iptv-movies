@@ -1,6 +1,6 @@
 import requests, json, time, os
 
-DB_FILE = "movies_database.json"
+DB_FILE = "data/movies_database.json" # Đã đưa vào thư mục data cho gọn
 
 def fetch(url):
     try:
@@ -10,6 +10,7 @@ def fetch(url):
     except: return None
 
 def main():
+    if not os.path.exists("data"): os.makedirs("data")
     db = json.load(open(DB_FILE, "r", encoding="utf-8")) if os.path.exists(DB_FILE) else {}
     if "_meta" not in db: 
         db["_meta"] = {"OPhim_old": 3, "KKPhim_old": 3, "NguonC_old": 3}
@@ -26,7 +27,6 @@ def main():
             data = fetch(f"{src['list']}{page}")
             if not data: continue
             
-            # CẬP NHẬT BỘ LỌC TẠI ĐÂY
             items = data.get('items') if src['name'] != "NguonC" else data.get('films')
             if not items: continue
             
@@ -34,28 +34,25 @@ def main():
                 slug = item.get('slug')
                 if slug not in db:
                     time.sleep(0.3)
-                    # NguonC gọi chi tiết theo slug
                     detail = fetch(f"{src['detail']}/{slug}")
                     if detail: db[slug] = detail
         db["_meta"][src["meta"]] = curr + 3
 
     json.dump(db, open(DB_FILE, "w", encoding="utf-8"), ensure_ascii=False)
 
-    # Xuất file M3U
+    # Xuất file M3U và cập nhật thời gian
     playlists = {"single": "phim_le.m3u", "series": "phim_bo.m3u", "hoathinh": "hoat_hinh.m3u", "tvshows": "tv_shows.m3u"}
     for p_type, filename in playlists.items():
         content = "#EXTM3U\n"
         for slug, detail in db.items():
             if slug == "_meta": continue
-            # Xử lý lấy thông tin phim từ cả 3 nguồn
             movie = detail.get('movie', detail.get('film', detail.get('item', {})))
             if not movie or (movie.get('type') != p_type and not (p_type == "series" and movie.get('type') == 'series')): continue
             
             thumb = movie.get('thumb_url', movie.get('poster_url', ''))
             name = movie.get('name', 'Phim')
-            
-            # Xử lý tập phim (NguonC thường dùng episodes hoặc list_episodes)
             episodes = detail.get('episodes', detail.get('list_episodes', []))
+            
             for ep_group in episodes:
                 eps = ep_group.get('server_data', ep_group.get('items', []))
                 for ep in sorted(eps, key=lambda x: str(x['name']), reverse=True):
@@ -63,6 +60,11 @@ def main():
         
         with open(filename, "w", encoding="utf-8") as f:
             f.write(content)
+        # Ép cập nhật timestamp để Git ghi nhận thay đổi
+        os.utime(filename, None)
+    
+    # Cập nhật cả file JSON
+    os.utime(DB_FILE, None)
 
 if __name__ == "__main__":
     main()
