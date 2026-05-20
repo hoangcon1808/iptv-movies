@@ -11,6 +11,7 @@ def fetch(url):
         return None
 
 def main():
+    # 1. Load dữ liệu cũ
     db = json.load(open(DB_FILE, "r", encoding="utf-8")) if os.path.exists(DB_FILE) else {}
     if "_meta" not in db:
         db["_meta"] = {"OPhim_old": 3, "KKPhim_old": 3, "NguonC_old": 3}
@@ -21,60 +22,62 @@ def main():
         {"name": "NguonC", "list": "https://phim.nguonc.com/api/films/phim-moi?page=", "detail": "https://phim.nguonc.com/api/film", "meta": "NguonC_old"}
     ]
 
+    # 2. Cào dữ liệu mới
     for src in sources:
         curr = db["_meta"].get(src["meta"], 1)
         for page in range(1, curr + 3):
             data = fetch(f"{src['list']}{page}")
-            if not data:
-                continue
+            if not data: continue
             items = data.get('items') if src['name'] != "NguonC" else data.get('films')
-            if not items:
-                continue
+            if not items: continue
             for item in items:
                 slug = item.get('slug')
                 if slug not in db:
                     time.sleep(0.3)
                     detail = fetch(f"{src['detail']}/{slug}")
-                    if detail:
-                        db[slug] = detail
+                    if detail: db[slug] = detail
         db["_meta"][src["meta"]] = curr + 3
 
     json.dump(db, open(DB_FILE, "w", encoding="utf-8"), ensure_ascii=False)
 
+    # 3. Xuất file M3U (Gộp tất cả tập phim vào cùng 1 thư mục theo tên phim)
     playlists = {
-        "single": "phim_le.m3u",
-        "series": "phim_bo.m3u",
-        "hoathinh": "hoat_hinh.m3u",
-        "tvshows": "tv_shows.m3u",
-        "all": "all.m3u"
+        "single": "phim_le.m3u", "series": "phim_bo.m3u", 
+        "hoathinh": "hoat_hinh.m3u", "tvshows": "tv_shows.m3u", "all": "all.m3u"
     }
 
     for p_type, filename in playlists.items():
         content = "#EXTM3U\n"
         for slug, detail in db.items():
-            if slug == "_meta":
-                continue
-            movie = detail.get('movie', detail.get('film', detail.get('item', {})))
-            if not movie:
-                continue
+            if slug == "_meta": continue
             
+            movie = detail.get('movie', detail.get('film', detail.get('item', {})))
+            if not movie: continue
+            
+            # Lọc theo loại nếu không phải file all
             if p_type != "all":
                 if movie.get('type') != p_type and not (p_type == "series" and movie.get('type') == 'series'):
                     continue
             
-            thumb = movie.get('thumb_url', movie.get('poster_url', ''))
             name = movie.get('name', 'Phim')
-            episodes = detail.get('episodes', detail.get('list_episodes', []))
+            thumb = movie.get('thumb_url', movie.get('poster_url', ''))
             
-            for ep_group in episodes:
-                eps = ep_group.get('server_data', ep_group.get('items', []))
-                for ep in sorted(eps, key=lambda x: str(x['name']), reverse=True):
-                    group = movie.get('type', 'Phim')
-                    content += f'#EXTINF:-1 tvg-logo="{thumb}" group-title="{group}",{name} - {ep["name"]}\n{ep["link_m3u8"]}\n'
+            # Gom tất cả tập phim vào một danh sách phẳng
+            episodes_list = detail.get('episodes', detail.get('list_episodes', []))
+            all_eps = []
+            for ep_group in episodes_list:
+                all_eps.extend(ep_group.get('server_data', ep_group.get('items', [])))
+            
+            # Sắp xếp tập theo tên
+            all_eps.sort(key=lambda x: str(x.get('name', '')))
+            
+            # Tạo dòng M3U với group-title là tên phim để app gom nhóm
+            for ep in all_eps:
+                content += f'#EXTINF:-1 tvg-logo="{thumb}" group-title="{name}",{name} - Tập {ep.get("name")}\n{ep.get("link_m3u8")}\n'
         
         with open(filename, "w", encoding="utf-8") as f:
             f.write(content)
-        os.utime(filename, None)
+        os.utime(filename, None) # Ép cập nhật timestamp
     
     os.utime(DB_FILE, None)
 
