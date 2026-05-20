@@ -2,14 +2,14 @@ name: Auto Update M3U Playlist
 
 on:
   schedule:
-    - cron: "0 */3 * * *" # Tự động chạy mỗi 3 tiếng
-  workflow_dispatch:      # Cung cấp nút bấm chạy thủ công trên GitHub
+    - cron: "*/30 * * * *" # Tự động chạy mỗi 30 phút một lần
+  workflow_dispatch:      # Nút bấm chạy thủ công trên GitHub
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Bắt buộc để Actions có quyền ghi file lên kho của bạn
+      contents: write # Quyền ghi file lên kho lưu trữ
 
     steps:
       - name: Checkout code
@@ -32,7 +32,6 @@ jobs:
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          # Lệnh *.m3u sẽ tự động tóm gọn cả 4 file phim lẻ, phim bộ, hoạt hình, tv shows
           git add movies_database.json *.m3u
-          git commit -m "Auto update and categorize movies playlist" || echo "No changes to commit"
+          git commit -m "Auto update every 30 minutes" || echo "No changes to commit"
           git push
