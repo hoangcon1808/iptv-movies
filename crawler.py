@@ -11,7 +11,7 @@ def fetch(url):
         return None
 
 def main():
-    # 1. Load dữ liệu cũ
+    # Load dữ liệu cũ
     db = json.load(open(DB_FILE, "r", encoding="utf-8")) if os.path.exists(DB_FILE) else {}
     if "_meta" not in db:
         db["_meta"] = {"OPhim_old": 3, "KKPhim_old": 3, "NguonC_old": 3}
@@ -22,7 +22,7 @@ def main():
         {"name": "NguonC", "list": "https://phim.nguonc.com/api/films/phim-moi?page=", "detail": "https://phim.nguonc.com/api/film", "meta": "NguonC_old"}
     ]
 
-    # 2. Cào dữ liệu mới
+    # Cào dữ liệu
     for src in sources:
         curr = db["_meta"].get(src["meta"], 1)
         for page in range(1, curr + 3):
@@ -40,7 +40,7 @@ def main():
 
     json.dump(db, open(DB_FILE, "w", encoding="utf-8"), ensure_ascii=False)
 
-    # 3. Xuất file M3U (Gộp tất cả tập phim vào cùng 1 thư mục theo tên phim)
+    # Xuất file M3U với logic gom nhóm chuẩn
     playlists = {
         "single": "phim_le.m3u", "series": "phim_bo.m3u", 
         "hoathinh": "hoat_hinh.m3u", "tvshows": "tv_shows.m3u", "all": "all.m3u"
@@ -54,30 +54,30 @@ def main():
             movie = detail.get('movie', detail.get('film', detail.get('item', {})))
             if not movie: continue
             
-            # Lọc theo loại nếu không phải file all
             if p_type != "all":
                 if movie.get('type') != p_type and not (p_type == "series" and movie.get('type') == 'series'):
                     continue
             
             name = movie.get('name', 'Phim')
             thumb = movie.get('thumb_url', movie.get('poster_url', ''))
+            group = movie.get('type', 'Phim').capitalize()
             
-            # Gom tất cả tập phim vào một danh sách phẳng
+            # Gom tất cả tập phim
             episodes_list = detail.get('episodes', detail.get('list_episodes', []))
             all_eps = []
             for ep_group in episodes_list:
                 all_eps.extend(ep_group.get('server_data', ep_group.get('items', [])))
             
-            # Sắp xếp tập theo tên
+            # Sắp xếp và ép định dạng tập phim
             all_eps.sort(key=lambda x: str(x.get('name', '')))
             
-            # Tạo dòng M3U với group-title là tên phim để app gom nhóm
             for ep in all_eps:
-                content += f'#EXTINF:-1 tvg-logo="{thumb}" group-title="{name}",{name} - Tập {ep.get("name")}\n{ep.get("link_m3u8")}\n'
+                # tvg-id chính là chìa khóa để app gom các tập vào 1 đầu mục
+                content += f'#EXTINF:-1 tvg-id="{slug}" tvg-logo="{thumb}" group-title="{group}",{name} - Tập {ep.get("name")}\n{ep.get("link_m3u8")}\n'
         
         with open(filename, "w", encoding="utf-8") as f:
             f.write(content)
-        os.utime(filename, None) # Ép cập nhật timestamp
+        os.utime(filename, None)
     
     os.utime(DB_FILE, None)
 
