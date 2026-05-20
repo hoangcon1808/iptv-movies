@@ -2,8 +2,8 @@ name: Auto Update M3U Playlist
 
 on:
   schedule:
-    - cron: '0 */3 * * *' # Chạy tự động mỗi 3 tiếng
-  workflow_dispatch: # Cho phép chạy thủ công
+    - cron: '0 */3 * * *'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -13,10 +13,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4 # Đã nâng cấp lên v4
 
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5 # Đã nâng cấp lên v5
       with:
         python-version: '3.9'
 
@@ -33,5 +33,4 @@ jobs:
         git config --local user.email "github-actions[bot]@users.noreply.github.com"
         git config --local user.name "github-actions[bot]"
         git add movies.m3u
-        # Nếu có file mới hoặc thay đổi thì mới lưu lại
         git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update movies.m3u" && git push)
