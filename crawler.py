@@ -20,76 +20,59 @@ def main():
     ]
 
     for src in sources:
-        print(f"--- Đang xử lý nguồn: {src['name']} ---")
-        
+        # 1. BẮT TREND
         for page in range(1, 3):
             data = fetch(f"{src['list']}{page}")
             if not data: continue
             for item in data.get('items', []):
-                slug = item['slug']
-                if slug not in db:
+                if item['slug'] not in db:
                     time.sleep(0.3)
-                    detail = fetch(f"{src['detail']}/{slug}")
-                    if detail: db[slug] = detail
+                    detail = fetch(f"{src['detail']}/{item['slug']}")
+                    if detail: db[item['slug']] = detail
 
-        current_old_page = db["_meta"][src["meta_key"]]
-        next_old_page = current_old_page + 5
-        for page in range(current_old_page, next_old_page):
+        # 2. KHẢO CỔ HỌC
+        current_page = db["_meta"][src["meta_key"]]
+        for page in range(current_page, current_page + 5):
             data = fetch(f"{src['list']}{page}")
             if not data or not data.get('items'): continue
             for item in data.get('items', []):
-                slug = item['slug']
-                if slug not in db:
+                if item['slug'] not in db:
                     time.sleep(0.3)
-                    detail = fetch(f"{src['detail']}/{slug}")
-                    if detail: db[slug] = detail
-        
-        db["_meta"][src["meta_key"]] = next_old_page
+                    detail = fetch(f"{src['detail']}/{item['slug']}")
+                    if detail: db[item['slug']] = detail
+        db["_meta"][src["meta_key"]] = current_page + 5
 
-    print(f"--- Hoàn tất! Tổng số phim hiện có: {len(db) - 1} ---")
     json.dump(db, open(DB_FILE, "w", encoding="utf-8"), ensure_ascii=False)
 
+    # 3. XUẤT FILE M3U VỚI GROUP-TITLE & SẮP XẾP TẬP
     playlists = {
-        "single": {"filename": "phim_le.m3u", "content": "#EXTM3U\n"},
-        "series": {"filename": "phim_bo.m3u", "content": "#EXTM3U\n"},
-        "hoathinh": {"filename": "hoat_hinh.m3u", "content": "#EXTM3U\n"},
-        "tvshows": {"filename": "tv_shows.m3u", "content": "#EXTM3U\n"},
-        "other": {"filename": "phim_khac.m3u", "content": "#EXTM3U\n"}
+        "single": "phim_le.m3u",
+        "series": "phim_bo.m3u",
+        "hoathinh": "hoat_hinh.m3u",
+        "tvshows": "tv_shows.m3u"
     }
 
-    for slug, detail in db.items():
-        if slug == "_meta": continue 
-        
-        movie = detail.get('movie', detail.get('item', {}))
-        thumb = movie.get('thumb_url', '')
-        name = movie.get('name', 'Phim')
-        
-        movie_type = movie.get('type', 'other')
-        if movie_type not in playlists: movie_type = "other"
+    for p_type, filename in playlists.items():
+        m3u_content = "#EXTM3U\n"
+        for slug, detail in db.items():
+            if slug == "_meta": continue
             
-        for server in detail.get('episodes', []):
-            server_name = server.get('server_name', 'Server')
-            for ep in server.get('server_data', []):
-                playlists[movie_type]["content"] += f'#EXTINF:-1 tvg-logo="{thumb}",{name} - {server_name} [{ep["name"]}]\n{ep["link_m3u8"]}\n'
-
-    for key, data in playlists.items():
-        with open(data["filename"], "w", encoding="utf-8") as f:
-            f.write(data["content"])
-
-    # --- ĐOẠN CODE MỚI THÊM: TẠO FILE PLUGINS.JSON ---
-    # Thay 'trungnt3891-stack' bằng đúng tên username GitHub của bạn nếu cần
-    base_cdn = "https://cdn.jsdelivr.net/gh/trungnt3891-stack/iptv-movies@main"
-    
-    plugins_data = [
-        {"name": "🎬 KHO PHIM LẺ", "url": f"{base_cdn}/phim_le.m3u", "type": "m3u"},
-        {"name": "📺 KHO PHIM BỘ", "url": f"{base_cdn}/phim_bo.m3u", "type": "m3u"},
-        {"name": "🐻 KHO HOẠT HÌNH", "url": f"{base_cdn}/hoat_hinh.m3u", "type": "m3u"},
-        {"name": "🎤 KHO TV SHOWS", "url": f"{base_cdn}/tv_shows.m3u", "type": "m3u"}
-    ]
-    
-    with open("plugins.json", "w", encoding="utf-8") as f:
-        json.dump(plugins_data, f, ensure_ascii=False, indent=4)
-    print("Đã tạo thành công file plugins.json")
+            movie = detail.get('movie', detail.get('item', {}))
+            if movie.get('type') != p_type and not (p_type == "series" and movie.get('type') == 'series'):
+                continue
+                
+            thumb = movie.get('thumb_url', '')
+            name = movie.get('name', 'Phim')
+            
+            for server in detail.get('episodes', []):
+                # Sắp xếp tập mới nhất lên đầu
+                sorted_eps = sorted(server.get('server_data', []), key=lambda x: x['name'], reverse=True)
+                for ep in sorted_eps:
+                    # group-title giúp APTV tự gom vào thư mục
+                    m3u_content += f'#EXTINF:-1 tvg-logo="{thumb}" group-title="{name}",{name} - {ep["name"]}\n{ep["link_m3u8"]}\n'
+        
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(m3u_content)
 
 if __name__ == "__main__":
     main()
