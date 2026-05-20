@@ -2,8 +2,8 @@ name: Auto Update M3U Playlist
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
-  workflow_dispatch:
+    - cron: "*/30 * * * *" # Tự động chạy mỗi 30 phút
+  workflow_dispatch:      # Nút bấm chạy thủ công
 
 jobs:
   build:
@@ -32,6 +32,7 @@ jobs:
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          # Đảm bảo add tất cả các file .json và .m3u đã được crawler cập nhật
           git add movies_database.json *.m3u
-          git commit -m "Auto update movies database and m3u lists" || echo "No changes to commit"
+          git commit -m "Auto update movies database and all playlists" || echo "No changes to commit"
           git push
