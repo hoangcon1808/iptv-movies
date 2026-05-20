@@ -1,6 +1,6 @@
 import requests, json, time, os
 
-DB_FILE = "data/movies_database.json" # Đã đưa vào thư mục data cho gọn
+DB_FILE = "movies_database.json"
 
 def fetch(url):
     try:
@@ -10,7 +10,6 @@ def fetch(url):
     except: return None
 
 def main():
-    if not os.path.exists("data"): os.makedirs("data")
     db = json.load(open(DB_FILE, "r", encoding="utf-8")) if os.path.exists(DB_FILE) else {}
     if "_meta" not in db: 
         db["_meta"] = {"OPhim_old": 3, "KKPhim_old": 3, "NguonC_old": 3}
@@ -26,10 +25,8 @@ def main():
         for page in range(1, curr + 3):
             data = fetch(f"{src['list']}{page}")
             if not data: continue
-            
             items = data.get('items') if src['name'] != "NguonC" else data.get('films')
             if not items: continue
-            
             for item in items:
                 slug = item.get('slug')
                 if slug not in db:
@@ -40,7 +37,7 @@ def main():
 
     json.dump(db, open(DB_FILE, "w", encoding="utf-8"), ensure_ascii=False)
 
-    # Xuất file M3U và cập nhật thời gian
+    # Xuất file M3U và ép cập nhật thời gian
     playlists = {"single": "phim_le.m3u", "series": "phim_bo.m3u", "hoathinh": "hoat_hinh.m3u", "tvshows": "tv_shows.m3u"}
     for p_type, filename in playlists.items():
         content = "#EXTM3U\n"
@@ -60,10 +57,8 @@ def main():
         
         with open(filename, "w", encoding="utf-8") as f:
             f.write(content)
-        # Ép cập nhật timestamp để Git ghi nhận thay đổi
         os.utime(filename, None)
     
-    # Cập nhật cả file JSON
     os.utime(DB_FILE, None)
 
 if __name__ == "__main__":
