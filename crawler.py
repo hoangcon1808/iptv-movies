@@ -1,4 +1,4 @@
-import requests, json, time, os
+import requests, json, time, os, re
 
 DB_FILE = "movies_database.json"
 
@@ -10,8 +10,15 @@ def fetch(url):
     except:
         return None
 
+def extract_number(ep_name):
+    try:
+        match = re.search(r'\d+', str(ep_name))
+        return int(match.group()) if match else 0
+    except:
+        return 0
+
 def main():
-    # Load dữ liệu cũ
+    # 1. Load dữ liệu
     db = json.load(open(DB_FILE, "r", encoding="utf-8")) if os.path.exists(DB_FILE) else {}
     if "_meta" not in db:
         db["_meta"] = {"OPhim_old": 3, "KKPhim_old": 3, "NguonC_old": 3}
@@ -22,7 +29,7 @@ def main():
         {"name": "NguonC", "list": "https://phim.nguonc.com/api/films/phim-moi?page=", "detail": "https://phim.nguonc.com/api/film", "meta": "NguonC_old"}
     ]
 
-    # Cào dữ liệu
+    # 2. Cào dữ liệu mới
     for src in sources:
         curr = db["_meta"].get(src["meta"], 1)
         for page in range(1, curr + 3):
@@ -40,7 +47,7 @@ def main():
 
     json.dump(db, open(DB_FILE, "w", encoding="utf-8"), ensure_ascii=False)
 
-    # Xuất file M3U với logic gom nhóm chuẩn
+    # 3. Xuất file M3U với logic gom nhóm thông minh
     playlists = {
         "single": "phim_le.m3u", "series": "phim_bo.m3u", 
         "hoathinh": "hoat_hinh.m3u", "tvshows": "tv_shows.m3u", "all": "all.m3u"
@@ -62,17 +69,17 @@ def main():
             thumb = movie.get('thumb_url', movie.get('poster_url', ''))
             group = movie.get('type', 'Phim').capitalize()
             
-            # Gom tất cả tập phim
+            # Gom tất cả tập phim từ mọi server
             episodes_list = detail.get('episodes', detail.get('list_episodes', []))
             all_eps = []
             for ep_group in episodes_list:
                 all_eps.extend(ep_group.get('server_data', ep_group.get('items', [])))
             
-            # Sắp xếp và ép định dạng tập phim
-            all_eps.sort(key=lambda x: str(x.get('name', '')))
+            # Sắp xếp tập theo số thứ tự (1, 2, 10 thay vì 1, 10, 2)
+            all_eps.sort(key=lambda x: extract_number(x.get('name', '')))
             
+            # Ghi vào M3U: tvg-id giúp app gom các tập vào 1 phim
             for ep in all_eps:
-                # tvg-id chính là chìa khóa để app gom các tập vào 1 đầu mục
                 content += f'#EXTINF:-1 tvg-id="{slug}" tvg-logo="{thumb}" group-title="{group}",{name} - Tập {ep.get("name")}\n{ep.get("link_m3u8")}\n'
         
         with open(filename, "w", encoding="utf-8") as f:
