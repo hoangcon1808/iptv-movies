@@ -1,0 +1,46 @@
+name: Auto Fetch Movies Data
+
+# Cài đặt thời gian chạy tự động và cho phép chạy thủ công
+on:
+  schedule:
+    - cron: '*/15 * * * *' # Chạy mỗi 15 phút một lần
+  workflow_dispatch: # Nút bấm để bạn có thể chạy thủ công (nếu cần)
+
+# Cấp quyền cho GitHub Actions có thể push code mới vào repo
+permissions:
+  contents: write
+
+jobs:
+  update-data:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Tải code từ repository về máy ảo
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2. Cài đặt Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      # 3. Cài đặt các thư viện cần thiết
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests
+
+      # 4. Chạy file script của bạn (Giả sử file code của bạn tên là main.py)
+      - name: Run Python script
+        run: python main.py
+
+      # 5. Commit và Push các file được tạo/cập nhật lên lại GitHub
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add movies_database.json *.m3u
+          
+          # Lệnh này giúp tránh báo lỗi nếu không có gì thay đổi
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto update movies data [skip ci]" && git push)
