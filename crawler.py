@@ -3,7 +3,7 @@ import json
 import time
 
 def fetch_data(url):
-    """Hàm gọi API chung có xử lý chống block (Timeout & Headers)"""
+    """Hàm gọi API chung có xử lý chống block"""
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
     }
@@ -16,8 +16,6 @@ def fetch_data(url):
     return None
 
 def main():
-    # Danh sách các nguồn phát dùng chung cấu trúc OPhim CMS và NguonC
-    # Lưu ý: Các site cấu trúc OPhim thường dùng link phimapi.com hoặc ophim1.com làm kho chứa
     sources = [
         {
             "name": "NguonC",
@@ -34,8 +32,6 @@ def main():
             "list_url": "https://phimapi.com/danh-sach/phim-moi-cap-nhat?page=1",
             "detail_url": "https://phimapi.com/phim"
         },
-        # Bạn có thể bật các nguồn dưới đây nếu tìm được chính xác đường dẫn API của chúng
-        # (Thông thường thêm /api/ trước đường dẫn hoặc dùng /danh-sach/...)
         {
             "name": "YanHH3D",
             "list_url": "https://yanhh3d.io/api/danh-sach/phim-moi-cap-nhat?page=1", 
@@ -53,7 +49,6 @@ def main():
         if not data:
             continue
             
-        # OPhim và NguonC đều trả danh sách trong mảng 'items' hoặc 'data.items'
         items = data.get('items', data.get('data', {}).get('items', []))
         
         for movie in items:
@@ -61,7 +56,6 @@ def main():
             if not slug:
                 continue
                 
-            # Tránh spam request quá nhanh làm sập API của họ
             time.sleep(0.5) 
             
             detail_data = fetch_data(f"{src['detail_url']}/{slug}")
@@ -75,16 +69,22 @@ def main():
             movie_name = movie_info.get('name', 'Phim Ẩn Danh')
             thumb_url = movie_info.get('thumb_url', movie_info.get('poster_url', ''))
             
-            # Phân loại nhóm phim
+            # --- ĐOẠN ĐÃ FIX LỖI KEYERROR: 0 ---
             category = "Phim"
-            if movie_info.get('category'):
-                category = movie_info['category'][0].get('name', 'Phim')
-            elif movie_info.get('type'):
-                category = movie_info['type'].capitalize()
+            cat_data = movie_info.get('category')
+            
+            if isinstance(cat_data, list) and len(cat_data) > 0:
+                category = cat_data[0].get('name', 'Phim')
+            elif isinstance(cat_data, dict):
+                category = cat_data.get('name', 'Phim')
+            elif isinstance(cat_data, str):
+                category = cat_data
+            elif not cat_data and movie_info.get('type'):
+                category = str(movie_info.get('type')).capitalize()
+            # ------------------------------------
                 
             group_title = f"{src['name']} - {category}"
             
-            # Lấy danh sách tập phim
             episodes = detail_data.get('episodes', [])
             for server in episodes:
                 server_name = server.get('server_name', 'Server')
