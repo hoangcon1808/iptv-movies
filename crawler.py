@@ -22,7 +22,6 @@ def main():
     for src in sources:
         print(f"--- Đang xử lý nguồn: {src['name']} ---")
         
-        # 1. BẮT TREND (Quét 2 trang đầu)
         for page in range(1, 3):
             data = fetch(f"{src['list']}{page}")
             if not data: continue
@@ -33,7 +32,6 @@ def main():
                     detail = fetch(f"{src['detail']}/{slug}")
                     if detail: db[slug] = detail
 
-        # 2. KHẢO CỔ HỌC (Quét 5 trang cũ)
         current_old_page = db["_meta"][src["meta_key"]]
         next_old_page = current_old_page + 5
         for page in range(current_old_page, next_old_page):
@@ -51,16 +49,14 @@ def main():
     print(f"--- Hoàn tất! Tổng số phim hiện có: {len(db) - 1} ---")
     json.dump(db, open(DB_FILE, "w", encoding="utf-8"), ensure_ascii=False)
 
-    # 3. TẠO TỪ ĐIỂN CHỨA 4 FILE M3U RIÊNG BIỆT
     playlists = {
         "single": {"filename": "phim_le.m3u", "content": "#EXTM3U\n"},
         "series": {"filename": "phim_bo.m3u", "content": "#EXTM3U\n"},
         "hoathinh": {"filename": "hoat_hinh.m3u", "content": "#EXTM3U\n"},
         "tvshows": {"filename": "tv_shows.m3u", "content": "#EXTM3U\n"},
-        "other": {"filename": "phim_khac.m3u", "content": "#EXTM3U\n"} # Backup nếu web nguồn ghi sai loại phim
+        "other": {"filename": "phim_khac.m3u", "content": "#EXTM3U\n"}
     }
 
-    # 4. BÓC TÁCH VÀ PHÂN LOẠI
     for slug, detail in db.items():
         if slug == "_meta": continue 
         
@@ -68,21 +64,32 @@ def main():
         thumb = movie.get('thumb_url', '')
         name = movie.get('name', 'Phim')
         
-        # Lấy loại phim từ API (thường là single, series, hoathinh, tvshows)
         movie_type = movie.get('type', 'other')
-        if movie_type not in playlists:
-            movie_type = "other"
+        if movie_type not in playlists: movie_type = "other"
             
         for server in detail.get('episodes', []):
             server_name = server.get('server_name', 'Server')
             for ep in server.get('server_data', []):
-                # Nhét link vào đúng file m3u của loại phim đó
                 playlists[movie_type]["content"] += f'#EXTINF:-1 tvg-logo="{thumb}",{name} - {server_name} [{ep["name"]}]\n{ep["link_m3u8"]}\n'
 
-    # 5. LƯU TẤT CẢ RA FILE
     for key, data in playlists.items():
         with open(data["filename"], "w", encoding="utf-8") as f:
             f.write(data["content"])
+
+    # --- ĐOẠN CODE MỚI THÊM: TẠO FILE PLUGINS.JSON ---
+    # Thay 'trungnt3891-stack' bằng đúng tên username GitHub của bạn nếu cần
+    base_cdn = "https://cdn.jsdelivr.net/gh/trungnt3891-stack/iptv-movies@main"
+    
+    plugins_data = [
+        {"name": "🎬 KHO PHIM LẺ", "url": f"{base_cdn}/phim_le.m3u", "type": "m3u"},
+        {"name": "📺 KHO PHIM BỘ", "url": f"{base_cdn}/phim_bo.m3u", "type": "m3u"},
+        {"name": "🐻 KHO HOẠT HÌNH", "url": f"{base_cdn}/hoat_hinh.m3u", "type": "m3u"},
+        {"name": "🎤 KHO TV SHOWS", "url": f"{base_cdn}/tv_shows.m3u", "type": "m3u"}
+    ]
+    
+    with open("plugins.json", "w", encoding="utf-8") as f:
+        json.dump(plugins_data, f, ensure_ascii=False, indent=4)
+    print("Đã tạo thành công file plugins.json")
 
 if __name__ == "__main__":
     main()
