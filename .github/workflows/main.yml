@@ -1,36 +1,28 @@
-name: Auto Update M3U Playlist
-
+name: Crawler Movie
 on:
   schedule:
-    - cron: '0 */3 * * *'
-  workflow_dispatch:
+    - cron: "0 */3 * * *" # Chạy mỗi 3 tiếng
+  workflow_dispatch:      # Cho phép bấm nút "Run" thủ công
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-
+      contents: write # QUAN TRỌNG: Cấp quyền ghi file
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4 # Đã nâng cấp lên v4
-
-    - name: Set up Python
-      uses: actions/setup-python@v5 # Đã nâng cấp lên v5
-      with:
-        python-version: '3.9'
-
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install requests
-
-    - name: Run Crawler
-      run: python crawler.py
-
-    - name: Commit and Push changes
-      run: |
-        git config --local user.email "github-actions[bot]@users.noreply.github.com"
-        git config --local user.name "github-actions[bot]"
-        git add movies.m3u
-        git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update movies.m3u" && git push)
+      - uses: actions/checkout@v3
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+      - name: Install dependencies
+        run: pip install requests
+      - name: Run Crawler
+        run: python crawler.py
+      - name: Commit and Push
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add movies_database.json movies.m3u
+          git commit -m "Auto-update movie list" || echo "No changes to commit"
+          git push
